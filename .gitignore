@@ -1,0 +1,48 @@
+# Editor
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js / Capacitor web build
+.next/
+out/
+build/
+dist/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Vercel
+.vercel/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Capacitor native (generated Pods; commit ios/App sources once added on Mac)
+ios/App/Pods/
+ios/App/App/public/
+**/xcuserdata/
+**/*.xcuserstate
+DerivedData/
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.cursor/
+
+# Local
+*.local
+*.pem

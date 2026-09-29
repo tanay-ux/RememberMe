@@ -1,0 +1,21 @@
+<!--
+  Merge these keys into ios/App/App/Info.plist after `npx cap add ios`.
+  Camera / Photos are required for face + badge capture.
+-->
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLName</key>
+    <string>com.rememberme.app</string>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>rememberme</string>
+    </array>
+  </dict>
+</array>
+<key>NSCameraUsageDescription</key>
+<string>RememberMe uses the camera to photograph people you meet and their conference badges.</string>
+<key>NSPhotoLibraryUsageDescription</key>
+<string>RememberMe lets you attach photos from your library to contacts and badges.</string>
+<key>NSPhotoLibraryAddUsageDescription</key>
+<string>RememberMe can save exported contact photos if you choose to.</string>

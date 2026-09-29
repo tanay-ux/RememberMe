@@ -1,0 +1,18 @@
+{
+  "name": "RememberMe",
+  "short_name": "RememberMe",
+  "description": "Remember the people you meet at conferences",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
