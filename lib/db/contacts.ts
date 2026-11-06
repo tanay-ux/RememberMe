@@ -11,6 +11,10 @@ import type {
   Tag,
 } from "./schema";
 import { TAG_COLORS } from "./schema";
+import {
+  cancelContactReminder,
+  scheduleContactReminder,
+} from "../notifications/reminders";
 import { compressImage } from "../photos/compress";
 
 export interface CreateContactInput {
@@ -211,6 +215,13 @@ export async function createContact(input: CreateContactInput): Promise<string> 
     },
   );
 
+  void scheduleContactReminder({
+    contactId: id,
+    name: contact.name,
+    reminderAt: contact.reminder_at,
+    reminderNote: contact.reminder_note,
+  });
+
   return id;
 }
 
@@ -271,11 +282,20 @@ export async function updateContact(input: UpdateContactInput): Promise<void> {
       }
     },
   );
+
+  void scheduleContactReminder({
+    contactId: contact.id,
+    name: contact.name,
+    reminderAt: contact.reminder_at,
+    reminderNote: contact.reminder_note,
+  });
 }
 
 export async function deleteContact(id: string): Promise<void> {
   const contact = await db.contacts.get(id);
   if (!contact) return;
+
+  await cancelContactReminder(id);
 
   await db.transaction(
     "rw",
@@ -368,7 +388,6 @@ export async function listContactsWithDetails(
     if (filter === "willing_to_refer" && details.willing_to_refer !== "yes") {
       continue;
     }
-    if (filter === "has_linkedin" && !details.linkedin_url) continue;
 
     if (tagId && !details.tags.some((t) => t.id === tagId)) continue;
 
@@ -437,6 +456,7 @@ export async function deleteNote(noteId: string): Promise<void> {
 }
 
 export async function clearReminder(contactId: string): Promise<void> {
+  await cancelContactReminder(contactId);
   await db.contacts.update(contactId, {
     reminder_at: undefined,
     reminder_note: undefined,

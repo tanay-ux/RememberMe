@@ -46,3 +46,8 @@ DerivedData/
 # Local
 *.local
 *.pem
+
+# Device / OCR scratch (do not commit)
+tmp-device-test/
+eng.traineddata
+*.traineddata

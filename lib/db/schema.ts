@@ -65,23 +65,19 @@ export interface ContactWithDetails extends Contact {
 
 export type SortOption = "recent" | "updated" | "alphabetical" | "reminder";
 
-export type ListFilter =
-  | "all"
-  | "reminders_due"
-  | "willing_to_refer"
-  | "has_linkedin";
+export type ListFilter = "all" | "reminders_due" | "willing_to_refer";
 
 export const TAG_COLORS = [
-  "#0f766e",
-  "#0369a1",
-  "#b45309",
-  "#be123c",
-  "#4d7c0f",
-  "#7c3aed",
-  "#0e7490",
-  "#a16207",
-  "#334155",
-  "#c2410c",
+  "#0a66c2",
+  "#378fe9",
+  "#7eb8a8",
+  "#6b8cae",
+  "#8aa4b8",
+  "#5a9bb5",
+  "#004182",
+  "#6b7a90",
+  "#70b5f9",
+  "#5c9ec9",
 ] as const;
 
 export const REFERRAL_LABELS: Record<ReferralStatus, string> = {

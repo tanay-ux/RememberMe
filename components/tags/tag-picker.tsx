@@ -45,30 +45,32 @@ export function TagPicker({ selected, onChange }: TagPickerProps) {
   );
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-1.5 min-h-7">
-        {selected.map((tag, i) => (
-          <Badge
-            key={tag}
-            variant="secondary"
-            className="gap-1 pr-1"
-            style={{
-              backgroundColor: `${TAG_COLORS[i % TAG_COLORS.length]}20`,
-              color: TAG_COLORS[i % TAG_COLORS.length],
-              borderColor: `${TAG_COLORS[i % TAG_COLORS.length]}40`,
-            }}
-          >
-            {tag}
-            <button
-              type="button"
-              onClick={() => removeTag(tag)}
-              className="rounded-sm hover:bg-black/10 p-0.5"
+    <div className="space-y-3">
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selected.map((tag, i) => (
+            <Badge
+              key={tag}
+              variant="secondary"
+              className="gap-1 pr-1"
+              style={{
+                backgroundColor: `${TAG_COLORS[i % TAG_COLORS.length]}20`,
+                color: TAG_COLORS[i % TAG_COLORS.length],
+                borderColor: `${TAG_COLORS[i % TAG_COLORS.length]}40`,
+              }}
             >
-              <X className="size-3" />
-            </button>
-          </Badge>
-        ))}
-      </div>
+              {tag}
+              <button
+                type="button"
+                onClick={() => removeTag(tag)}
+                className="rounded-sm hover:bg-black/10 p-0.5"
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
 
       <div className="flex gap-2">
         <Input

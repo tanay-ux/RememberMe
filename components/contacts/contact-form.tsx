@@ -6,26 +6,43 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import { BadgeCapture } from "@/components/contacts/badge-capture";
 import { FollowUpFields } from "@/components/contacts/follow-up-fields";
 import { MeetingContextForm } from "@/components/contacts/meeting-context-form";
 import { PhotoCapture } from "@/components/contacts/photo-capture";
 import { SocialLinksFields } from "@/components/contacts/social-links-fields";
-import { TagPicker } from "@/components/tags/tag-picker";
 import {
   createContact,
   getPhotoUrl,
   updateContact,
 } from "@/lib/db/contacts";
 import type { ContactWithDetails, ReferralStatus } from "@/lib/db/schema";
-import type { ExtractedBadgeInfo } from "@/lib/photos/badge-ocr";
-import { contactDetailPath } from "@/lib/routes";
+import {
+  hasCredibleBadgeInfo,
+  sanitizeBadgeInfo,
+  type ExtractedBadgeInfo,
+} from "@/lib/photos/badge-ocr";
+import { fetchLinkedInAvatar } from "@/lib/photos/linkedin-avatar";
+import {
+  normalizeLinkedInProfileUrl,
+  resolveLinkedInProfile,
+} from "@/lib/photos/linkedin-profile";
+import { contactDetailPath, extractLinkedInFromText } from "@/lib/routes";
+import { setFlashToast } from "@/lib/ui/flash-toast";
 import { contactFormSchema } from "@/lib/validation/contact";
+
+export interface ContactFormCaptureSeed {
+  badgeBlob?: Blob;
+  badgePreviewUrl?: string;
+  photoBlob?: Blob;
+  photoPreviewUrl?: string;
+  extracted?: ExtractedBadgeInfo;
+  linkedinUrl?: string;
+  statusMessage?: string;
+}
 
 interface ContactFormProps {
   contact?: ContactWithDetails;
-  /** Prefill from Share Extension / deep link */
   draft?: {
     name?: string;
     email?: string;
@@ -34,6 +51,8 @@ interface ContactFormProps {
     phone?: string;
     title?: string;
   };
+  /** Prefill from the camera-first capture step */
+  captureSeed?: ContactFormCaptureSeed;
   onSaved?: (id: string) => void;
   onCancel?: () => void;
 }
@@ -49,17 +68,48 @@ function dateStringToMs(value?: string): number | null | undefined {
   return new Date(value + "T09:00:00").getTime();
 }
 
-export function ContactForm({ contact, draft, onSaved, onCancel }: ContactFormProps) {
+function existingMeetingNotes(contact?: ContactWithDetails): string {
+  if (!contact) return "";
+  return (
+    contact.meeting_context?.initial_context ||
+    contact.notes.find((n) => n.note_type === "meeting")?.body ||
+    ""
+  );
+}
+
+export function ContactForm({
+  contact,
+  draft,
+  captureSeed,
+  onSaved,
+  onCancel,
+}: ContactFormProps) {
   const router = useRouter();
   const isEdit = Boolean(contact);
+  const seed = captureSeed?.extracted
+    ? sanitizeBadgeInfo(captureSeed.extracted)
+    : undefined;
 
-  const [name, setName] = useState(contact?.name ?? draft?.name ?? "");
-  const [company, setCompany] = useState(contact?.company ?? draft?.company ?? "");
-  const [title, setTitle] = useState(contact?.title ?? draft?.title ?? "");
-  const [phone, setPhone] = useState(contact?.phone ?? draft?.phone ?? "");
-  const [email, setEmail] = useState(contact?.email ?? draft?.email ?? "");
+  const [name, setName] = useState(
+    contact?.name ?? draft?.name ?? seed?.name ?? "",
+  );
+  const [company, setCompany] = useState(
+    contact?.company ?? draft?.company ?? seed?.company ?? "",
+  );
+  const [title, setTitle] = useState(
+    contact?.title ?? draft?.title ?? seed?.title ?? "",
+  );
+  const [phone, setPhone] = useState(
+    contact?.phone ?? draft?.phone ?? seed?.phone ?? "",
+  );
+  const [email, setEmail] = useState(
+    contact?.email ?? draft?.email ?? seed?.email ?? "",
+  );
   const [linkedin_url, setLinkedinUrl] = useState(
-    contact?.linkedin_url ?? draft?.linkedin_url ?? "",
+    contact?.linkedin_url ??
+      draft?.linkedin_url ??
+      captureSeed?.linkedinUrl ??
+      "",
   );
   const [website, setWebsite] = useState(contact?.website ?? "");
   const [instagram, setInstagram] = useState(contact?.instagram ?? "");
@@ -71,31 +121,29 @@ export function ContactForm({ contact, draft, onSaved, onCancel }: ContactFormPr
     reminderToDateString(contact?.reminder_at),
   );
   const [reminderNote, setReminderNote] = useState(contact?.reminder_note ?? "");
-  const [event_name, setEventName] = useState(
-    contact?.meeting_context?.event_name ?? "",
-  );
-  const [location, setLocation] = useState(
-    contact?.meeting_context?.location ?? "",
-  );
-  const [date_met, setDateMet] = useState(
-    contact?.meeting_context?.date_met ?? "",
-  );
-  const [initial_context, setInitialContext] = useState(
-    contact?.meeting_context?.initial_context ?? "",
-  );
-  const [first_note, setFirstNote] = useState("");
-  const [tag_names, setTagNames] = useState<string[]>(
+  const [meetingNotes, setMeetingNotes] = useState(existingMeetingNotes(contact));
+  const [tags, setTags] = useState<string[]>(
     contact?.tags.map((t) => t.name) ?? [],
   );
-  const [photoBlob, setPhotoBlob] = useState<Blob | null | undefined>(undefined);
-  const [badgeBlob, setBadgeBlob] = useState<Blob | null | undefined>(undefined);
+  const [photoBlob, setPhotoBlob] = useState<Blob | null | undefined>(
+    captureSeed?.photoBlob,
+  );
+  const [badgeBlob, setBadgeBlob] = useState<Blob | null | undefined>(
+    captureSeed?.badgeBlob,
+  );
   const [removePhoto, setRemovePhoto] = useState(false);
   const [removeBadge, setRemoveBadge] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | undefined>();
-  const [existingBadgeUrl, setExistingBadgeUrl] = useState<string | undefined>();
-  const [extractToast, setExtractToast] = useState<string | null>(null);
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | undefined>(
+    captureSeed?.photoPreviewUrl,
+  );
+  const [existingBadgeUrl, setExistingBadgeUrl] = useState<string | undefined>(
+    captureSeed?.badgePreviewUrl,
+  );
+  const [extractToast, setExtractToast] = useState<string | null>(
+    captureSeed?.statusMessage ?? null,
+  );
 
   useEffect(() => {
     if (!contact?.photo_id) return;
@@ -108,6 +156,67 @@ export function ContactForm({ contact, draft, onSaved, onCancel }: ContactFormPr
       if (url) URL.revokeObjectURL(url);
     };
   }, [contact?.photo_id]);
+
+  // Deep link / share / draft LinkedIn URL — resolve real name + photo whenever URL appears
+  useEffect(() => {
+    if (isEdit) return;
+    const cleaned =
+      extractLinkedInFromText(linkedin_url) || linkedin_url.trim();
+    if (!cleaned || !/linkedin\.com\/in\//i.test(cleaned)) return;
+
+    const canonical = normalizeLinkedInProfileUrl(cleaned);
+    if (canonical !== linkedin_url.trim()) {
+      setLinkedinUrl(canonical);
+    }
+
+    const needsName = !name.trim();
+    const needsTitle = !title.trim();
+    const needsPhoto = !photoBlob && !existingPhotoUrl;
+    if (!needsName && !needsTitle && !needsPhoto) return;
+
+    let cancelled = false;
+    void (async () => {
+      setExtractToast("Looking up LinkedIn profile…");
+      const profile = await resolveLinkedInProfile(canonical);
+      if (cancelled) return;
+
+      if (profile.name && needsName) setName(profile.name);
+      if (profile.headline && needsTitle) setTitle(profile.headline);
+
+      if (needsPhoto) {
+        const avatar = await fetchLinkedInAvatar(
+          canonical,
+          profile.photoUrl,
+        );
+        if (cancelled) return;
+        if (avatar) {
+          const objectUrl = URL.createObjectURL(avatar);
+          setExistingPhotoUrl((prev) => {
+            if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+            return objectUrl;
+          });
+          setPhotoBlob(avatar);
+          setRemovePhoto(false);
+        }
+      }
+
+      if (cancelled) return;
+      const displayName = profile.name || name.trim();
+      setExtractToast(
+        displayName
+          ? `LinkedIn found for ${displayName} — review and save.`
+          : profile.privateProfile
+            ? "This LinkedIn profile isn’t public — enter the name manually."
+            : "LinkedIn URL filled — add the name if needed.",
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Re-run when a share/deep link sets the LinkedIn URL (not on every keystroke field)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedin_url, isEdit]);
 
   useEffect(() => {
     if (!contact?.badge_photo_id) return;
@@ -133,25 +242,65 @@ export function ContactForm({ contact, draft, onSaved, onCancel }: ContactFormPr
     setters[field]?.(value);
   }
 
-  function handleMeetingChange(field: string, value: string) {
-    const setters: Record<string, (v: string) => void> = {
-      event_name: setEventName,
-      location: setLocation,
-      date_met: setDateMet,
-      initial_context: setInitialContext,
-    };
-    setters[field]?.(value);
-  }
-
   function handlePhotoChange(blob: Blob | null) {
     if (blob === null) {
       setPhotoBlob(null);
       setRemovePhoto(true);
-      setExistingPhotoUrl(undefined);
+      setExistingPhotoUrl((prev) => {
+        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return undefined;
+      });
     } else {
       setPhotoBlob(blob);
       setRemovePhoto(false);
     }
+  }
+
+  async function handleLinkedInFound(url: string) {
+    setLinkedinUrl(url);
+
+    const hasPhoto = Boolean(photoBlob) || Boolean(existingPhotoUrl);
+    setExtractToast("LinkedIn found — looking up profile…");
+    const profile = await resolveLinkedInProfile(url);
+    if (profile.name && !name.trim()) {
+      setName(profile.name);
+    }
+    if (profile.headline && !title.trim()) {
+      setTitle(profile.headline);
+    }
+
+    if (hasPhoto) {
+      setExtractToast(
+        profile.name
+          ? `LinkedIn found for ${profile.name} — review before saving.`
+          : "LinkedIn profile filled from QR — review before saving.",
+      );
+      return;
+    }
+
+    setExtractToast("Fetching LinkedIn photo…");
+    const avatar = await fetchLinkedInAvatar(url, profile.photoUrl);
+    if (!avatar) {
+      setExtractToast(
+        profile.name
+          ? `LinkedIn found for ${profile.name} — add a photo if you can.`
+          : "LinkedIn URL filled — add the name and photo.",
+      );
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(avatar);
+    setExistingPhotoUrl((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return objectUrl;
+    });
+    setPhotoBlob(avatar);
+    setRemovePhoto(false);
+    setExtractToast(
+      profile.name
+        ? `LinkedIn found for ${profile.name} — photo filled.`
+        : "LinkedIn photo filled — add the name, then save.",
+    );
   }
 
   function handleBadgeChange(blob: Blob | null) {
@@ -166,60 +315,43 @@ export function ContactForm({ contact, draft, onSaved, onCancel }: ContactFormPr
   }
 
   function applyExtracted(info: ExtractedBadgeInfo) {
+    const clean = sanitizeBadgeInfo(info);
+    if (!hasCredibleBadgeInfo(clean)) {
+      setExtractToast(
+        "Couldn’t read a clear name from that photo — enter details manually.",
+      );
+      return;
+    }
+
     const filled: string[] = [];
-    // Only fill empty fields so we never wipe user edits
-    if (info.name?.trim() && !name.trim()) {
-      setName(info.name.trim());
+    if (clean.name?.trim() && !name.trim()) {
+      setName(clean.name.trim());
       filled.push("name");
     }
-    if (info.company?.trim() && !company.trim()) {
-      setCompany(info.company.trim());
+    if (clean.company?.trim() && !company.trim()) {
+      setCompany(clean.company.trim());
       filled.push("company");
     }
-    if (info.title?.trim() && !title.trim()) {
-      setTitle(info.title.trim());
+    if (clean.title?.trim() && !title.trim()) {
+      setTitle(clean.title.trim());
       filled.push("title");
     }
-    if (info.email?.trim() && !email.trim()) {
-      setEmail(info.email.trim());
+    if (clean.email?.trim() && !email.trim()) {
+      setEmail(clean.email.trim());
       filled.push("email");
     }
-    if (info.phone?.trim() && !phone.trim()) {
-      setPhone(info.phone.trim());
+    if (clean.phone?.trim() && !phone.trim()) {
+      setPhone(clean.phone.trim());
       filled.push("phone");
     }
     setExtractToast(
       filled.length
         ? `Filled: ${filled.join(", ")}. Review before saving.`
-        : "Nothing new filled — fields may already have values, or OCR was unclear. Edit manually if needed.",
+        : "Nothing new filled — fields may already have values, or OCR was unclear.",
     );
   }
 
-  function resetFormKeepEvent() {
-    setName("");
-    setCompany("");
-    setTitle("");
-    setPhone("");
-    setEmail("");
-    setLinkedinUrl("");
-    setWebsite("");
-    setInstagram("");
-    setTwitter("");
-    setWillingToRefer("unknown");
-    setReminderDate("");
-    setReminderNote("");
-    setFirstNote("");
-    setPhotoBlob(undefined);
-    setBadgeBlob(undefined);
-    setRemovePhoto(false);
-    setRemoveBadge(false);
-    setExistingPhotoUrl(undefined);
-    setExistingBadgeUrl(undefined);
-    setExtractToast(null);
-    setErrors({});
-  }
-
-  async function handleSubmit(saveAndAddAnother = false) {
+  async function handleSubmit() {
     const values = {
       name,
       company,
@@ -233,12 +365,9 @@ export function ContactForm({ contact, draft, onSaved, onCancel }: ContactFormPr
       willing_to_refer: willingToRefer,
       reminder_at: reminderDate,
       reminder_note: reminderNote,
-      event_name,
-      location,
-      date_met,
-      initial_context,
-      first_note: isEdit ? undefined : first_note,
-      tag_names,
+      initial_context: meetingNotes,
+      first_note: isEdit ? undefined : meetingNotes,
+      tag_names: tags,
     };
 
     const result = contactFormSchema.safeParse(values);
@@ -269,12 +398,9 @@ export function ContactForm({ contact, draft, onSaved, onCancel }: ContactFormPr
         willing_to_refer: willingToRefer,
         reminder_at: dateStringToMs(reminderDate),
         reminder_note: reminderNote,
-        event_name,
-        location,
-        date_met,
-        initial_context,
-        first_note: isEdit ? undefined : first_note,
-        tag_names,
+        initial_context: meetingNotes,
+        first_note: isEdit ? undefined : meetingNotes.trim() || undefined,
+        tag_names: tags,
         photoBlob: photoBlob ?? undefined,
         badgePhotoBlob: badgeBlob ?? undefined,
         removePhoto: isEdit ? removePhoto : undefined,
@@ -286,13 +412,9 @@ export function ContactForm({ contact, draft, onSaved, onCancel }: ContactFormPr
         onSaved?.(contact.id);
         if (!onSaved) router.push(contactDetailPath(contact.id));
       } else {
-        const id = await createContact(input);
-        if (saveAndAddAnother) {
-          resetFormKeepEvent();
-        } else {
-          onSaved?.(id);
-          router.push(contactDetailPath(id));
-        }
+        await createContact(input);
+        setFlashToast(`Saved ${name.trim()}`);
+        router.replace("/");
       }
     } finally {
       setSubmitting(false);
@@ -301,129 +423,119 @@ export function ContactForm({ contact, draft, onSaved, onCancel }: ContactFormPr
 
   return (
     <form
-      className="space-y-6"
+      className="flex min-h-0 flex-1 flex-col"
       onSubmit={(e) => {
         e.preventDefault();
-        void handleSubmit(false);
+        void handleSubmit();
       }}
     >
-      <div className="space-y-2">
-        <Label className="text-base">Face photo</Label>
-        <PhotoCapture
-          name={name}
-          previewUrl={existingPhotoUrl}
-          onPhotoChange={handlePhotoChange}
+      <div className="w-full max-w-full space-y-12 pb-[calc(7rem+var(--app-sab,0px))]">
+        <div className="space-y-3">
+          <Label className="text-base font-semibold tracking-tight">
+            Add photo
+          </Label>
+          <PhotoCapture
+            name={name}
+            previewUrl={existingPhotoUrl}
+            onPhotoChange={handlePhotoChange}
+          />
+        </div>
+
+        <BadgeCapture
+          previewUrl={existingBadgeUrl}
+          onBadgeChange={handleBadgeChange}
+          onExtracted={applyExtracted}
+          onLinkedInFound={(url) => {
+            void handleLinkedInFound(url);
+          }}
+        />
+        {extractToast && (
+          <p className="-mt-6 text-sm leading-relaxed text-muted-foreground">
+            {extractToast}
+          </p>
+        )}
+
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="name">Name *</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Full name"
+            />
+            {errors.name && (
+              <p className="text-sm text-destructive">{errors.name}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="company">Company</Label>
+            <Input
+              id="company"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              placeholder="Company"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="title">Title / role</Label>
+            <Input
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Role"
+            />
+          </div>
+        </div>
+
+        <SocialLinksFields
+          values={{ phone, email, linkedin_url, website, instagram, twitter }}
+          onChange={handleSocialChange}
+          errors={errors}
+        />
+
+        <Separator />
+
+        <MeetingContextForm
+          value={meetingNotes}
+          onChange={setMeetingNotes}
+          tags={tags}
+          onTagsChange={setTags}
+        />
+
+        <Separator />
+
+        <FollowUpFields
+          willingToRefer={willingToRefer}
+          reminderDate={reminderDate}
+          reminderNote={reminderNote}
+          onWillingChange={setWillingToRefer}
+          onReminderDateChange={setReminderDate}
+          onReminderNoteChange={setReminderNote}
         />
       </div>
 
-      <BadgeCapture
-        previewUrl={existingBadgeUrl}
-        onBadgeChange={handleBadgeChange}
-        onExtracted={applyExtracted}
-      />
-      {extractToast && (
-        <p className="text-sm text-muted-foreground -mt-3">{extractToast}</p>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="name">Name *</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Jane Doe"
-            autoFocus={!isEdit}
-          />
-          {errors.name && (
-            <p className="text-sm text-destructive">{errors.name}</p>
-          )}
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="company">Company</Label>
-          <Input
-            id="company"
-            value={company}
-            onChange={(e) => setCompany(e.target.value)}
-            placeholder="Acme Robotics"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="title">Title / role</Label>
-          <Input
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Product Manager"
-          />
-        </div>
-      </div>
-
-      <SocialLinksFields
-        values={{ phone, email, linkedin_url, website, instagram, twitter }}
-        onChange={handleSocialChange}
-        errors={errors}
-      />
-
-      <Separator />
-
-      <FollowUpFields
-        willingToRefer={willingToRefer}
-        reminderDate={reminderDate}
-        reminderNote={reminderNote}
-        onWillingChange={setWillingToRefer}
-        onReminderDateChange={setReminderDate}
-        onReminderNoteChange={setReminderNote}
-      />
-
-      <Separator />
-
-      <MeetingContextForm
-        values={{ event_name, location, date_met, initial_context }}
-        onChange={handleMeetingChange}
-      />
-
-      <Separator />
-
-      <div className="space-y-2">
-        <Label>Tags</Label>
-        <TagPicker selected={tag_names} onChange={setTagNames} />
-      </div>
-
-      {!isEdit && (
-        <div className="space-y-1.5">
-          <Label htmlFor="first_note">First note</Label>
-          <Textarea
-            id="first_note"
-            value={first_note}
-            onChange={(e) => setFirstNote(e.target.value)}
-            placeholder="What you talked about — searchable later"
-            rows={3}
-          />
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-2 pt-2">
-        <Button type="submit" disabled={submitting}>
-          {isEdit ? "Save changes" : "Save contact"}
-        </Button>
-        {!isEdit && (
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 w-full max-w-full border-t border-border/80 bg-background/95 backdrop-blur-md"
+        style={{ paddingBottom: "max(0.5rem, var(--app-sab, 0px))" }}
+      >
+        <div className="mx-auto flex w-full max-w-2xl gap-3 px-5 py-3">
           <Button
             type="button"
             variant="secondary"
-            disabled={submitting}
-            onClick={() => void handleSubmit(true)}
+            className="h-11 flex-1 rounded-lg"
+            onClick={() => (onCancel ? onCancel() : router.back())}
           >
-            Save & add another
+            Cancel
           </Button>
-        )}
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => (onCancel ? onCancel() : router.back())}
-        >
-          Cancel
-        </Button>
+          <Button
+            type="submit"
+            disabled={submitting}
+            className="h-11 flex-[1.4] rounded-lg text-base shadow-md shadow-primary/20"
+          >
+            Save
+          </Button>
+        </div>
       </div>
     </form>
   );

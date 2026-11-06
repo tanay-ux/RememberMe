@@ -9,7 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-heading);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -39,92 +39,132 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-brand-soft: var(--brand-soft);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-xl: calc(var(--radius) * 1.35);
+  --radius-2xl: calc(var(--radius) * 1.75);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Off-white canvas + LinkedIn blue CTAs — WCAG AA text contrast */
+  --background: #f7f8fa;
+  --foreground: #121820;
+  --card: #ffffff;
+  --card-foreground: #121820;
+  --popover: #ffffff;
+  --popover-foreground: #121820;
+  --primary: #0a66c2;
+  --primary-foreground: #ffffff;
+  --brand-soft: #e4eef8;
+  --secondary: #e8edf3;
+  --secondary-foreground: #121820;
+  /* ~7:1 on background — readable secondary copy */
+  --muted: #e8edf3;
+  --muted-foreground: #4a5568;
+  --accent: #e4eef8;
+  --accent-foreground: #121820;
+  /* Darker red for AA on white */
+  --destructive: #c0392b;
+  --border: #d5dde8;
+  --input: #cfd8e3;
+  --ring: #0a66c2;
+  --chart-1: #0a66c2;
+  --chart-2: #378fe9;
+  --chart-3: #70b5f9;
+  --chart-4: #4a5568;
+  --chart-5: #121820;
+  --radius: 0.5rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #121820;
+  --sidebar-primary: #0a66c2;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e4eef8;
+  --sidebar-accent-foreground: #121820;
+  --sidebar-border: #d5dde8;
+  --sidebar-ring: #0a66c2;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #0f1419;
+  --foreground: #f0f4f8;
+  --card: #1a222d;
+  --card-foreground: #f0f4f8;
+  --popover: #1a222d;
+  --popover-foreground: #f0f4f8;
+  --primary: #5ba3e8;
+  --primary-foreground: #0f1419;
+  --brand-soft: #152a40;
+  --secondary: #243041;
+  --secondary-foreground: #f0f4f8;
+  --muted: #243041;
+  /* ~7:1 on dark card backgrounds */
+  --muted-foreground: #b6c2d1;
+  --accent: #152a40;
+  --accent-foreground: #f0f4f8;
+  --destructive: #f07171;
+  --border: #2a3645;
+  --input: #2a3645;
+  --ring: #5ba3e8;
+  --chart-1: #5ba3e8;
+  --chart-2: #70b5f9;
+  --chart-3: #0a66c2;
+  --chart-4: #b6c2d1;
+  --chart-5: #f0f4f8;
+  --sidebar: #1a222d;
+  --sidebar-foreground: #f0f4f8;
+  --sidebar-primary: #5ba3e8;
+  --sidebar-primary-foreground: #0f1419;
+  --sidebar-accent: #152a40;
+  --sidebar-accent-foreground: #f0f4f8;
+  --sidebar-border: #2a3645;
+  --sidebar-ring: #5ba3e8;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+    height: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+    /* Android 3-button nav often reports 0 safe-area — keep a floor */
+    --app-sat: env(safe-area-inset-top, 0px);
+    --app-sab: env(safe-area-inset-bottom, 0px);
+  }
+  html.native-android {
+    --app-sat: max(env(safe-area-inset-top, 0px), 12px);
+    /* 3-button nav is ~48–56dp; keep CTAs clearly above it */
+    --app-sab: max(env(safe-area-inset-bottom, 0px), 56px);
+  }
+  body {
+    @apply bg-background text-foreground antialiased leading-relaxed;
+    min-height: 100%;
+    min-height: 100dvh;
+    max-width: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+  }
+  p {
+    @apply leading-relaxed;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading), var(--font-sans), system-ui, sans-serif;
+    letter-spacing: -0.025em;
+    @apply text-foreground;
+  }
+  /* Empty fields: light grey placeholders, not filled-looking text */
+  input::placeholder,
+  textarea::placeholder {
+    color: color-mix(in oklab, var(--muted-foreground) 45%, transparent);
+    opacity: 1;
   }
 }

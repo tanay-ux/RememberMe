@@ -37,21 +37,28 @@ export function FollowUpFields({
   onReminderNoteChange,
 }: FollowUpFieldsProps) {
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-medium">Follow-up</h3>
+    <div className="space-y-8">
+      <div>
+        <h3 className="text-base font-semibold tracking-tight text-foreground">
+          Follow-up
+        </h3>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+          Set a reminder and note so you actually follow through.
+        </p>
+      </div>
 
-      <div className="space-y-1.5">
-        <Label>Willing to refer later?</Label>
+      <div className="space-y-3">
+        <Label className="text-base">Willing to refer later?</Label>
         <Select
           value={willingToRefer}
           onValueChange={(v) => v && onWillingChange(v as ReferralStatus)}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="h-11 w-full min-w-0 rounded-lg px-3.5 text-base">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {(Object.keys(REFERRAL_LABELS) as ReferralStatus[]).map((key) => (
-              <SelectItem key={key} value={key}>
+              <SelectItem key={key} value={key} className="text-base">
                 {REFERRAL_LABELS[key]}
               </SelectItem>
             ))}
@@ -59,15 +66,18 @@ export function FollowUpFields({
         </Select>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="reminder_at">Remind me to reach out</Label>
+      <div className="space-y-3">
+        <Label htmlFor="reminder_at" className="text-base">
+          Remind me to reach out
+        </Label>
         <Input
           id="reminder_at"
           type="date"
           value={reminderDate}
           onChange={(e) => onReminderDateChange(e.target.value)}
+          className="h-11 text-base"
         />
-        <div className="flex flex-wrap gap-1.5 pt-1">
+        <div className="flex flex-wrap gap-2 pt-1">
           {[
             { label: "3 days", days: 3 },
             { label: "1 week", days: 7 },
@@ -78,7 +88,8 @@ export function FollowUpFields({
               key={preset.days}
               type="button"
               variant="outline"
-              size="xs"
+              size="sm"
+              className="h-9 rounded-lg px-3 text-sm"
               onClick={() => onReminderDateChange(daysFromNow(preset.days))}
             >
               {preset.label}
@@ -88,7 +99,8 @@ export function FollowUpFields({
             <Button
               type="button"
               variant="ghost"
-              size="xs"
+              size="sm"
+              className="h-9 rounded-lg px-3 text-sm"
               onClick={() => onReminderDateChange("")}
             >
               Clear
@@ -97,13 +109,16 @@ export function FollowUpFields({
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="reminder_note">Reminder note</Label>
+      <div className="space-y-3">
+        <Label htmlFor="reminder_note" className="text-base">
+          Reminder note
+        </Label>
         <Input
           id="reminder_note"
           value={reminderNote}
           onChange={(e) => onReminderNoteChange(e.target.value)}
-          placeholder="Ask about referral / send portfolio"
+          placeholder="Reminder note"
+          className="h-11 text-base"
         />
       </div>
     </div>

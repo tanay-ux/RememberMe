@@ -44,6 +44,7 @@ In Xcode:
 7. Set the extension’s **Principal class** via Info.plist (`ShareViewController`)
 8. Enable **App Groups** for **both** App and Share Extension:
    - `group.com.rememberme.app`
+9. Cold-start handoff (recommended): add [`App/PendingShareHandoff.swift`](./App/PendingShareHandoff.swift) to the **App** target and call `PendingShareHandoff.openIfNeeded()` from `applicationDidBecomeActive` (see [`App/AppDelegate+Share.snippet.swift`](./App/AppDelegate+Share.snippet.swift)). This clears `pendingShareURL` written by the Share Extension when `appUrlOpen` is missed.
 
 ## 4. Signing
 
@@ -55,13 +56,15 @@ In Xcode:
 
 1. Run the **App** scheme on a device (Share Extension needs a real device for LinkedIn)
 2. In Safari/LinkedIn, open a profile → **Share** → **RememberMe**
-3. App should open **Add contact** with LinkedIn prefilled
+3. App should open **Add contact** with LinkedIn prefilled (name/photo when the profile is public)
 
 Deep link format:
 
 ```text
 rememberme://add?linkedin=https%3A%2F%2Fwww.linkedin.com%2Fin%2Fjane-doe
 ```
+
+**Android** (already wired in-repo): Share any LinkedIn profile text/URL → RememberMe appears in the share sheet → same Add Contact autofill.
 
 ## 6. App Store checklist
 

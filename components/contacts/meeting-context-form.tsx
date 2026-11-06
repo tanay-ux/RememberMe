@@ -1,62 +1,46 @@
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { TagPicker } from "@/components/tags/tag-picker";
 
 interface MeetingContextFormProps {
-  values: {
-    event_name?: string;
-    location?: string;
-    date_met?: string;
-    initial_context?: string;
-  };
-  onChange: (field: string, value: string) => void;
+  value: string;
+  onChange: (value: string) => void;
+  tags: string[];
+  onTagsChange: (tags: string[]) => void;
 }
 
 export function MeetingContextForm({
-  values,
+  value,
   onChange,
+  tags,
+  onTagsChange,
 }: MeetingContextFormProps) {
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-medium">Where you met</h3>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="event_name">Event / Conference</Label>
-          <Input
-            id="event_name"
-            value={values.event_name ?? ""}
-            onChange={(e) => onChange("event_name", e.target.value)}
-            placeholder="React Summit 2026"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="date_met">Date</Label>
-          <Input
-            id="date_met"
-            type="date"
-            value={values.date_met ?? ""}
-            onChange={(e) => onChange("date_met", e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="location">Location</Label>
-          <Input
-            id="location"
-            value={values.location ?? ""}
-            onChange={(e) => onChange("location", e.target.value)}
-            placeholder="Amsterdam, Booth 42"
-          />
-        </div>
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="initial_context">First impression / context</Label>
-          <Textarea
-            id="initial_context"
-            value={values.initial_context ?? ""}
-            onChange={(e) => onChange("initial_context", e.target.value)}
-            placeholder="Talked about their startup, interested in hiring..."
-            rows={3}
-          />
-        </div>
+    <div className="space-y-7">
+      <div>
+        <h3 className="text-base font-semibold tracking-tight text-foreground">
+          Meeting context
+        </h3>
+        <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
+          Where you met, what you talked about, anything worth remembering.
+        </p>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="meeting_notes" className="sr-only">
+          Meeting notes
+        </Label>
+        <Textarea
+          id="meeting_notes"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Where you met, what you talked about…"
+          rows={5}
+          className="min-h-32 rounded-lg resize-none"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Tags</Label>
+        <TagPicker selected={tags} onChange={onTagsChange} />
       </div>
     </div>
   );

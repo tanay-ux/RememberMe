@@ -1,32 +1,40 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Camera, ImagePlus, ScanText, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Camera, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { ImageSourceSheet } from "@/components/contacts/image-source-sheet";
 import {
   extractBadgeInfo,
+  hasCredibleBadgeInfo,
+  sanitizeBadgeInfo,
   type ExtractedBadgeInfo,
 } from "@/lib/photos/badge-ocr";
+import {
+  decodeQrFromBlob,
+  normalizeLinkedInCandidate,
+  resolveLinkedInProfile,
+} from "@/lib/photos/badge-qr";
+import { extractLinkedInFromText } from "@/lib/routes";
 
 interface BadgeCaptureProps {
   previewUrl?: string;
   onBadgeChange: (blob: Blob | null) => void;
   onExtracted: (info: ExtractedBadgeInfo) => void;
+  onLinkedInFound?: (url: string) => void;
 }
 
 export function BadgeCapture({
   previewUrl,
   onBadgeChange,
   onExtracted,
+  onLinkedInFound,
 }: BadgeCaptureProps) {
   const [localPreview, setLocalPreview] = useState<string | undefined>();
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [extracting, setExtracting] = useState(false);
-  const [blob, setBlob] = useState<Blob | null>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const galleryRef = useRef<HTMLInputElement>(null);
+  const [processing, setProcessing] = useState(false);
+  const [sourceOpen, setSourceOpen] = useState(false);
 
   const display = localPreview ?? previewUrl;
 
@@ -36,149 +44,150 @@ export function BadgeCapture({
     };
   }, [localPreview]);
 
-  function applyFile(file: File) {
+  async function processImage(file: File) {
     if (localPreview?.startsWith("blob:")) URL.revokeObjectURL(localPreview);
     const url = URL.createObjectURL(file);
     setLocalPreview(url);
-    setBlob(file);
     onBadgeChange(file);
     setError(null);
-    setStatus(null);
+    setProcessing(true);
+    setStatus("Reading image…");
+
+    try {
+      const qrRaw = await decodeQrFromBlob(file);
+      const linkedin = qrRaw
+        ? normalizeLinkedInCandidate(qrRaw)
+        : undefined;
+
+      // LinkedIn QR: skip OCR on the QR image (it fills garbage into fields)
+      if (linkedin) {
+        onLinkedInFound?.(linkedin);
+        setStatus("Looking up LinkedIn profile name…");
+        const profile = await resolveLinkedInProfile(linkedin);
+        onExtracted({
+          name: profile.name,
+          title: profile.headline,
+          rawText: linkedin,
+        });
+        setStatus(
+          profile.name
+            ? `LinkedIn QR detected — ${profile.name}`
+            : "LinkedIn QR detected — profile filled.",
+        );
+        return;
+      }
+
+      setStatus("Extracting details…");
+      let info = sanitizeBadgeInfo(await extractBadgeInfo(file, setStatus));
+      const linkedinFromText = extractLinkedInFromText(info.rawText || "");
+      if (linkedinFromText) {
+        onLinkedInFound?.(linkedinFromText);
+        setStatus("Looking up LinkedIn profile…");
+        const profile = await resolveLinkedInProfile(linkedinFromText);
+        // Public OG name wins; keep OCR name when privacy only left a slug guess
+        if (profile.name && (!profile.privateProfile || !info.name)) {
+          info = {
+            ...info,
+            name: profile.name,
+            title: profile.headline || info.title,
+          };
+        } else if (profile.headline && !info.title) {
+          info = { ...info, title: profile.headline };
+        }
+      }
+
+      if (!hasCredibleBadgeInfo(info, linkedinFromText || undefined)) {
+        setError(
+          "Couldn't find a name on that photo. Try a clearer LinkedIn screenshot or badge, or fill fields manually.",
+        );
+        setStatus(null);
+        return;
+      }
+
+      onExtracted(info);
+      setStatus(
+        info.name
+          ? `Details extracted — ${info.name}`
+          : "Details extracted — review below.",
+      );
+    } catch {
+      setError("Couldn't process this image. Try another photo or fill fields manually.");
+      setStatus(null);
+    } finally {
+      setProcessing(false);
+    }
   }
 
-  function handleRemove() {
+  function handleRemove(e: React.MouseEvent) {
+    e.stopPropagation();
     if (localPreview?.startsWith("blob:")) URL.revokeObjectURL(localPreview);
     setLocalPreview(undefined);
-    setBlob(null);
     onBadgeChange(null);
     setStatus(null);
     setError(null);
   }
 
-  async function handleExtract() {
-    if (!blob && !previewUrl) {
-      setError("Add a badge photo first.");
-      return;
-    }
-
-    setExtracting(true);
-    setError(null);
-    try {
-      let image = blob;
-      if (!image && previewUrl) {
-        const res = await fetch(previewUrl);
-        image = await res.blob();
-      }
-      if (!image) {
-        setError("Could not read badge image.");
-        return;
-      }
-      const info = await extractBadgeInfo(image, setStatus);
-      if (!info.name && !info.company && !info.email && !info.phone) {
-        setError(
-          "Couldn't read clear text from this badge. Try a sharper photo, better lighting, or fill fields manually.",
-        );
-        onExtracted(info);
-      } else {
-        setStatus("Extracted — review fields below.");
-        onExtracted(info);
-      }
-    } catch {
-      setError("OCR failed. You can still fill fields manually.");
-    } finally {
-      setExtracting(false);
-    }
-  }
-
   return (
-    <div className="space-y-3 rounded-xl border bg-card p-4">
+    <div className="space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <Label className="text-base">Conference badge</Label>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Snap the badge, then extract name, company, and email.
+          <h3 className="text-base font-semibold tracking-tight text-foreground">
+            Capture LinkedIn/Badge
+          </h3>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+            Tap to photograph a badge or LinkedIn QR — details fill in
+            automatically.
           </p>
         </div>
-        {display && (
-          <Button type="button" variant="ghost" size="icon-sm" onClick={handleRemove}>
+        {display && !processing && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={handleRemove}
+          >
             <X className="size-4" />
           </Button>
         )}
       </div>
 
-      {display ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={display}
-          alt="Conference badge"
-          className="w-full max-h-48 object-contain rounded-lg bg-muted"
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={() => cameraRef.current?.click()}
-          className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-10 text-muted-foreground hover:bg-muted/40 transition-colors"
-        >
-          <Camera className="size-8" />
-          <span className="text-sm">Tap to photograph badge</span>
-        </button>
+      <button
+        type="button"
+        disabled={processing}
+        onClick={() => setSourceOpen(true)}
+        className="relative flex w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-dashed border-border py-8 text-muted-foreground transition-colors hover:bg-secondary/60 disabled:opacity-60"
+      >
+        {display ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={display}
+            alt="LinkedIn or badge capture"
+            className="max-h-48 w-full object-contain"
+          />
+        ) : (
+          <>
+            <Camera className="size-8 stroke-[1.5]" />
+            <span className="text-sm">Tap to photograph or choose from gallery</span>
+          </>
+        )}
+        {processing && (
+          <div className="absolute inset-0 flex items-center justify-center gap-2 bg-background/70 text-sm text-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Working…
+          </div>
+        )}
+      </button>
+
+      {status && (
+        <p className="text-sm text-muted-foreground leading-relaxed">{status}</p>
       )}
-
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => cameraRef.current?.click()}
-        >
-          <Camera className="size-4" />
-          Take photo
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => galleryRef.current?.click()}
-        >
-          <ImagePlus className="size-4" />
-          Gallery
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          disabled={extracting || !display}
-          onClick={() => void handleExtract()}
-        >
-          <ScanText className="size-4" />
-          {extracting ? "Extracting…" : "Extract info"}
-        </Button>
-      </div>
-
-      {status && <p className="text-xs text-muted-foreground">{status}</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) applyFile(file);
-          e.target.value = "";
-        }}
-      />
-      <input
-        ref={galleryRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) applyFile(file);
-          e.target.value = "";
-        }}
+      <ImageSourceSheet
+        open={sourceOpen}
+        onOpenChange={setSourceOpen}
+        title="Capture LinkedIn/Badge"
+        onImageSelected={(file) => void processImage(file)}
       />
     </div>
   );

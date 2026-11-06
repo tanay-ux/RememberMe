@@ -3,198 +3,170 @@
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/app-header";
 import { ContactCard } from "@/components/contacts/contact-card";
+import { ListControls } from "@/components/contacts/list-controls";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   countDueReminders,
-  getDistinctEventNames,
   listContactsWithDetails,
-  getAllTags,
 } from "@/lib/db/contacts";
+import { seedMockContactsIfNeeded } from "@/lib/db/seed";
 import type {
   ContactWithDetails,
   ListFilter,
   SortOption,
 } from "@/lib/db/schema";
+import { consumeFlashToast } from "@/lib/ui/flash-toast";
 import { cn } from "@/lib/utils";
 
 export default function HomePage() {
   const [search, setSearch] = useState("");
-  const [tagId, setTagId] = useState<string>("all");
-  const [eventFilter, setEventFilter] = useState("");
-  const [sort, setSort] = useState<SortOption>("recent");
   const [filter, setFilter] = useState<ListFilter>("all");
+  const [sort, setSort] = useState<SortOption>("recent");
+  const [seedTick, setSeedTick] = useState(0);
+  const [flashToast, setFlashToast] = useState<string | null>(null);
 
-  const tags = useLiveQuery(() => getAllTags(), []) ?? [];
-  const dueCount = useLiveQuery(() => countDueReminders(), []) ?? 0;
-  const eventNames = useLiveQuery(() => getDistinctEventNames(), []) ?? [];
+  useEffect(() => {
+    void seedMockContactsIfNeeded().then((n) => {
+      if (n > 0) setSeedTick((t) => t + 1);
+    });
+  }, []);
+
+  useEffect(() => {
+    const message = consumeFlashToast();
+    if (!message) return;
+    setFlashToast(message);
+    const t = window.setTimeout(() => setFlashToast(null), 3200);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  const dueCount = useLiveQuery(() => countDueReminders(), [seedTick]) ?? 0;
 
   const contacts = useLiveQuery(
     async () => {
       return listContactsWithDetails({
         search: search || undefined,
-        tagId: tagId === "all" ? undefined : tagId,
-        eventName: eventFilter || undefined,
         sort,
         filter,
       });
     },
-    [search, tagId, eventFilter, sort, filter],
+    [search, filter, sort, seedTick],
   );
+
+  const hasFilters = Boolean(search) || filter !== "all";
 
   return (
     <>
-      <AppHeader />
-      <main className="mx-auto max-w-2xl flex-1 px-4 py-4 pb-24">
-        <div className="space-y-4">
+      <AppHeader large />
+      <main className="mx-auto w-full max-w-2xl flex-1 overflow-x-hidden px-5 pb-[calc(7rem+var(--app-sab,0px))] pt-6">
+        <div className="space-y-8">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search name, company, notes, email…"
-              className="pl-9"
+              placeholder="Search people, notes, companies…"
+              className="h-12 rounded-lg border-0 bg-secondary pl-10 text-base shadow-none focus-visible:ring-primary/25"
               autoComplete="off"
             />
           </div>
+
+          {flashToast && (
+            <div
+              role="status"
+              className="border-l-[3px] border-primary bg-brand-soft px-4 py-3.5 text-sm font-medium text-foreground"
+            >
+              {flashToast}
+            </div>
+          )}
 
           {dueCount > 0 && filter !== "reminders_due" && (
             <button
               type="button"
               onClick={() => setFilter("reminders_due")}
-              className="w-full rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-left text-sm text-amber-950"
+              className="w-full border-l-[3px] border-amber-700 bg-amber-50 px-4 py-3.5 text-left text-sm font-medium text-amber-950"
             >
               {dueCount} reminder{dueCount === 1 ? "" : "s"} due — tap to view
             </button>
           )}
 
-          <div className="flex flex-wrap gap-2">
-            <Select
-              value={filter}
-              onValueChange={(v) => v && setFilter(v as ListFilter)}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All contacts</SelectItem>
-                <SelectItem value="reminders_due">Reminders due</SelectItem>
-                <SelectItem value="willing_to_refer">Will refer</SelectItem>
-                <SelectItem value="has_linkedin">Has LinkedIn</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={sort}
-              onValueChange={(v) => v && setSort(v as SortOption)}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="recent">Recently added</SelectItem>
-                <SelectItem value="updated">Recently updated</SelectItem>
-                <SelectItem value="reminder">Reminder date</SelectItem>
-                <SelectItem value="alphabetical">A → Z</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={tagId} onValueChange={(v) => v && setTagId(v)}>
-              <SelectTrigger className="w-36">
-                <SelectValue placeholder="All tags" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All tags</SelectItem>
-                {tags.map((tag) => (
-                  <SelectItem key={tag.id} value={tag.id}>
-                    {tag.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {eventNames.length > 0 && (
-              <Select
-                value={eventFilter || "all"}
-                onValueChange={(v) => setEventFilter(v === "all" || !v ? "" : v)}
-              >
-                <SelectTrigger className="w-44">
-                  <SelectValue placeholder="All events" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All events</SelectItem>
-                  {eventNames.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-
           {contacts === undefined ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              Loading contacts...
+            <p className="py-20 text-center text-base text-muted-foreground">
+              Loading…
             </p>
           ) : contacts.length === 0 ? (
-            <div className="rounded-xl border border-dashed py-16 text-center px-4">
-              <p className="text-muted-foreground mb-4">
-                {search || tagId !== "all" || eventFilter || filter !== "all"
-                  ? "No contacts match your search or filters."
-                  : "No contacts yet. Capture someone you met — LinkedIn, badge photo, and a quick note."}
+            <div className="px-1 py-20 text-center">
+              <p className="mx-auto mb-8 max-w-xs text-base text-muted-foreground leading-relaxed">
+                {hasFilters
+                  ? "Nothing matches. Try a different search or filter."
+                  : "No contacts yet. Add someone you met — LinkedIn, a badge photo, and a quick note."}
               </p>
-              {search || filter !== "all" ? (
+              {hasFilters ? (
                 <button
                   type="button"
-                  className={cn(buttonVariants({ variant: "secondary" }))}
+                  className={cn(
+                    buttonVariants({ variant: "secondary", size: "lg" }),
+                    "h-11 rounded-lg px-5",
+                  )}
                   onClick={() => {
                     setSearch("");
                     setFilter("all");
-                    setTagId("all");
-                    setEventFilter("");
                   }}
                 >
                   Clear filters
                 </button>
               ) : (
-                <Link href="/contacts/new/" className={cn(buttonVariants())}>
+                <Link
+                  href="/contacts/new/"
+                  className={cn(
+                    buttonVariants({ size: "lg" }),
+                    "h-11 rounded-lg px-6",
+                  )}
+                >
                   Add your first contact
                 </Link>
               )}
             </div>
           ) : (
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground px-0.5">
-                {contacts.length} contact{contacts.length === 1 ? "" : "s"}
-              </p>
-              {contacts.map((contact: ContactWithDetails) => (
-                <ContactCard key={contact.id} contact={contact} />
-              ))}
-            </div>
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3 px-0.5 pb-1">
+                <p className="text-sm font-medium text-muted-foreground">
+                  {contacts.length} contact{contacts.length === 1 ? "" : "s"}
+                </p>
+                <ListControls
+                  sort={sort}
+                  filter={filter}
+                  dueCount={dueCount}
+                  onSortChange={setSort}
+                  onFilterChange={setFilter}
+                />
+              </div>
+
+              <div>
+                {contacts.map((contact: ContactWithDetails) => (
+                  <ContactCard key={contact.id} contact={contact} />
+                ))}
+              </div>
+            </section>
           )}
         </div>
       </main>
 
-      <div className="fixed bottom-6 right-6 z-50">
+      <div
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-5"
+        style={{ paddingBottom: "max(1rem, var(--app-sab, 0px))" }}
+      >
         <Link
           href="/contacts/new/"
           className={cn(
             buttonVariants({ size: "lg" }),
-            "rounded-full shadow-lg h-14 px-5",
+            "pointer-events-auto h-12 max-w-[min(100%,20rem)] gap-2 rounded-full px-6 text-base shadow-lg shadow-primary/30",
           )}
         >
-          <Plus className="size-5" />
+          <Plus className="size-5 stroke-[2]" />
           Add contact
         </Link>
       </div>

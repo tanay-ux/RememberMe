@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { Download, Upload } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { exportBackup, importBackup } from "@/lib/db/export";
 import { getStorageUsage } from "@/lib/db/contacts";
 import { formatBytes } from "@/lib/utils/format";
@@ -22,11 +21,7 @@ export default function SettingsPage() {
   }, []);
 
   async function handleImport(file: File) {
-    if (
-      !confirm(
-        "Import will replace all existing contacts. Continue?",
-      )
-    ) {
+    if (!confirm("Import will replace all existing contacts. Continue?")) {
       return;
     }
 
@@ -46,39 +41,48 @@ export default function SettingsPage() {
   return (
     <>
       <AppHeader title="Settings" backHref="/" />
-      <main className="mx-auto max-w-2xl flex-1 px-4 py-6 space-y-6">
-        <Card className="p-4 space-y-3">
-          <h2 className="font-medium">Storage</h2>
+      <main className="mx-auto w-full max-w-2xl flex-1 space-y-12 overflow-x-hidden px-5 pb-[calc(3rem+var(--app-sab,0px))] pt-4">
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold tracking-tight text-foreground">
+            Storage
+          </h2>
           {usage ? (
             <p className="text-sm text-muted-foreground">
               {usage.contacts} contact{usage.contacts !== 1 ? "s" : ""} ·{" "}
-              {formatBytes(usage.bytes)} used (photos)
+              {formatBytes(usage.bytes)} in photos
             </p>
           ) : (
-            <p className="text-sm text-muted-foreground">Loading...</p>
+            <p className="text-sm text-muted-foreground">Loading…</p>
           )}
-          <p className="text-xs text-muted-foreground">
-            Data is stored locally in your browser. Clearing browser data will
-            delete your contacts unless you export a backup.
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Data stays on this device. Clearing browser or app data deletes
+            contacts unless you export a backup.
           </p>
-        </Card>
+        </section>
 
-        <Card className="p-4 space-y-3">
-          <h2 className="font-medium">Backup</h2>
-          <p className="text-sm text-muted-foreground">
-            Export all contacts, photos, tags, and notes as a JSON file.
-          </p>
-          <Button onClick={() => void exportBackup()}>
+        <section className="space-y-3">
+          <div className="space-y-1">
+            <h2 className="text-base font-semibold tracking-tight">Backup</h2>
+            <p className="text-sm text-muted-foreground">
+              Download contacts, photos, tags, and notes as JSON.
+            </p>
+          </div>
+          <Button
+            onClick={() => void exportBackup()}
+            className="h-10 rounded-lg px-4"
+          >
             <Download className="size-4" />
             Export backup
           </Button>
-        </Card>
+        </section>
 
-        <Card className="p-4 space-y-3">
-          <h2 className="font-medium">Restore</h2>
-          <p className="text-sm text-muted-foreground">
-            Import a previously exported backup file.
-          </p>
+        <section className="space-y-3">
+          <div className="space-y-1">
+            <h2 className="text-base font-semibold tracking-tight">Restore</h2>
+            <p className="text-sm text-muted-foreground">
+              Import a previously exported backup file.
+            </p>
+          </div>
           <input
             ref={fileRef}
             type="file"
@@ -93,6 +97,7 @@ export default function SettingsPage() {
           <Button
             variant="secondary"
             disabled={importing}
+            className="h-10 rounded-lg px-4"
             onClick={() => fileRef.current?.click()}
           >
             <Upload className="size-4" />
@@ -101,7 +106,7 @@ export default function SettingsPage() {
           {message && (
             <p className="text-sm text-muted-foreground">{message}</p>
           )}
-        </Card>
+        </section>
       </main>
     </>
   );

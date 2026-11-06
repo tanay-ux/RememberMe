@@ -2,7 +2,9 @@
 
 Personal CRM for people you meet at conferences. Capture a face photo, LinkedIn link, conference badge (with on-device OCR), notes, referral intent, and follow-up reminders — all stored **on device**.
 
-Built as a Next.js app wrapped with **Capacitor** for a native iOS App Store build, including **Share Sheet → RememberMe**.
+Built as a Next.js app wrapped with **Capacitor** for native **Android / iOS**, including **Share Sheet → RememberMe**.
+
+**Architecture & LinkedIn name/photo extraction:** see [`NOTES.md`](NOTES.md).
 
 ## Features
 

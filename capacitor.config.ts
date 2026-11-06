@@ -21,6 +21,10 @@ const config: CapacitorConfig = {
     Keyboard: {
       resizeOnFullScreen: true,
     },
+    LocalNotifications: {
+      smallIcon: "ic_stat_icon_default",
+      iconColor: "#0A66C2",
+    },
   },
   ios: {
     contentInset: "automatic",

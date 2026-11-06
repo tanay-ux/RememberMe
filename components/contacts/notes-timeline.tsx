@@ -3,9 +3,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -60,26 +58,24 @@ export function NotesTimeline({
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-medium">Notes & conversations</h3>
+    <section className="space-y-6">
+      <h3 className="text-sm font-semibold text-foreground">Notes</h3>
 
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="note-body">Add a note</Label>
-          <Textarea
-            id="note-body"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Follow up about their product launch..."
-            rows={3}
-          />
-        </div>
+        <Textarea
+          id="note-body"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="What did you talk about?"
+          rows={3}
+          className="min-h-24 rounded-lg resize-none"
+        />
         <div className="flex flex-wrap items-center gap-3">
           <Select
             value={noteType}
             onValueChange={(v) => v && setNoteType(v as NoteType)}
           >
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="h-9 w-36 rounded-lg">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -88,7 +84,11 @@ export function NotesTimeline({
               <SelectItem value="general">General</SelectItem>
             </SelectContent>
           </Select>
-          <Button type="submit" size="sm" disabled={submitting}>
+          <Button
+            type="submit"
+            disabled={submitting}
+            className="h-9 rounded-lg px-4"
+          >
             Add note
           </Button>
         </div>
@@ -98,38 +98,37 @@ export function NotesTimeline({
       {notes.length === 0 ? (
         <p className="text-sm text-muted-foreground">No notes yet.</p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y divide-border">
           {notes.map((note) => (
-            <li
-              key={note.id}
-              className="rounded-lg border bg-card p-3 text-card-foreground"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
+            <li key={note.id} className="py-5 first:pt-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium text-primary">
                       {NOTE_TYPE_LABELS[note.note_type]}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
+                    </span>
+                    <span className="text-sm text-muted-foreground">
                       {format(note.created_at, "MMM d, yyyy · h:mm a")}
                     </span>
                   </div>
-                  <p className="text-sm whitespace-pre-wrap">{note.body}</p>
+                  <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground">
+                    {note.body}
+                  </p>
                 </div>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="shrink-0 text-muted-foreground"
+                  className="shrink-0 rounded-lg text-muted-foreground"
                   onClick={() => void handleDelete(note.id)}
                 >
-                  <Trash2 className="size-4" />
+                  <Trash2 className="size-4 stroke-[1.5]" />
                 </Button>
               </div>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </section>
   );
 }
